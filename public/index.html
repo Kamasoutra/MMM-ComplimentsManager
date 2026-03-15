@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compliments Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #111; color: #ddd; font-family: 'Helvetica Neue', sans-serif; padding: 24px; max-width: 820px; margin: 0 auto; }
+
+    h1 { font-size: 1.3rem; font-weight: 300; letter-spacing: 0.1em; text-transform: uppercase; color: #999; margin-bottom: 6px; }
+    .subtitle { font-size: 0.75rem; color: #444; margin-bottom: 24px; }
+
+    #status { padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; display: none; font-size: 0.85rem; }
+    #status.ok  { background: #1a3a1a; color: #6c6; display: block; }
+    #status.err { background: #3a1a1a; color: #c66; display: block; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid #222; margin-bottom: 20px; }
+    .tab { background: none; border: none; border-bottom: 2px solid transparent; color: #555; padding: 9px 16px; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; margin-bottom: -1px; white-space: nowrap; }
+    .tab:hover { color: #999; }
+    .tab.active { color: #ccc; border-bottom-color: #448; }
+    .tab-badge { background: #222; border-radius: 10px; padding: 1px 6px; font-size: 0.68rem; margin-left: 5px; color: #666; }
+    .tab-badge.has-paused { background: #2a2a18; color: #887; }
+
+    /* ── Add form ── */
+    .add-form { background: #161616; border: 1px solid #252525; border-radius: 6px; padding: 14px; margin-bottom: 16px; }
+    .add-form-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .add-form-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #555; }
+    .mode-toggle { display: flex; gap: 4px; }
+    .mode-btn { background: #1e1e1e; border: 1px solid #2a2a2a; color: #555; border-radius: 3px; padding: 3px 10px; cursor: pointer; font-size: 0.75rem; transition: all 0.12s; }
+    .mode-btn.active { background: #252535; border-color: #448; color: #aac; }
+
+    label { display: block; font-size: 0.75rem; color: #666; margin-bottom: 3px; }
+    textarea, input[type="text"] { width: 100%; background: #1c1c1c; border: 1px solid #2a2a2a; border-radius: 4px; color: #ddd; padding: 7px 10px; font-size: 0.88rem; font-family: inherit; margin-bottom: 10px; resize: vertical; }
+    textarea:focus, input[type="text"]:focus { outline: none; border-color: #448; }
+    textarea { min-height: 66px; }
+    .add-row { display: flex; gap: 10px; align-items: flex-start; }
+    .add-row textarea { margin-bottom: 0; }
+    .add-row .author-wrap { flex: 0 0 180px; }
+    .add-row .author-wrap input { margin-bottom: 0; }
+
+    /* ── Filters ── */
+    .filters { display: flex; gap: 6px; margin-bottom: 10px; }
+    .filter-btn { background: #161616; border: 1px solid #222; color: #555; border-radius: 3px; padding: 3px 11px; cursor: pointer; font-size: 0.75rem; transition: all 0.12s; }
+    .filter-btn.active { border-color: #333; color: #aaa; }
+
+    /* ── List ── */
+    #count { color: #3a3a3a; font-size: 0.75rem; margin-bottom: 8px; }
+    .compliment-item { background: #161616; border: 1px solid #222; border-radius: 5px; padding: 11px 11px 9px; margin-bottom: 7px; display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: start; transition: opacity 0.2s; }
+    .compliment-item.paused { opacity: 0.35; border-color: #1a1a1a; }
+    .item-mode { font-size: 0.65rem; color: #3a3a4a; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .item-text { white-space: pre-wrap; line-height: 1.5; font-size: 0.88rem; }
+    .item-text.citation { font-style: italic; color: #ddd; }
+    .item-text.plain    { color: #bbb; }
+    .compliment-item.paused .item-text { color: #555; }
+    .item-author { color: #666; font-size: 0.78rem; margin-top: 3px; }
+    .paused-badge { display: inline-block; font-size: 0.62rem; background: #1e1e14; color: #665; border-radius: 3px; padding: 1px 5px; margin-left: 6px; font-style: normal; }
+    .btn-group { display: flex; flex-direction: column; gap: 5px; }
+    .btn-pause, .btn-delete { background: none; border: 1px solid #252525; color: #666; border-radius: 3px; padding: 3px 9px; cursor: pointer; font-size: 0.72rem; white-space: nowrap; transition: all 0.12s; }
+    .btn-pause:hover  { border-color: #776; color: #aa9; }
+    .btn-pause.on     { border-color: #554; color: #887; }
+    .btn-delete:hover { border-color: #733; color: #b55; }
+
+    /* ── Settings tab ── */
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .setting-block { background: #161616; border: 1px solid #222; border-radius: 5px; padding: 14px; }
+    .setting-block.full { grid-column: 1 / -1; }
+    .setting-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin-bottom: 12px; border-bottom: 1px solid #1e1e1e; padding-bottom: 6px; }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 12px; }
+    .setting-row:last-child { margin-bottom: 0; }
+    .setting-label { font-size: 0.82rem; color: #888; }
+    .setting-hint  { font-size: 0.68rem; color: #444; margin-top: 2px; }
+    .setting-input { background: #1c1c1c; border: 1px solid #2a2a2a; border-radius: 4px; color: #ddd; padding: 5px 9px; font-size: 0.85rem; font-family: inherit; width: 110px; text-align: right; }
+    .setting-input.wide { width: 100%; text-align: left; margin-top: 6px; }
+    .setting-input:focus { outline: none; border-color: #448; }
+    .setting-display { font-size: 0.72rem; color: #558; margin-left: 6px; min-width: 70px; }
+    .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .time-item label { font-size: 0.8rem; color: #777; margin-bottom: 4px; }
+    .time-item input { width: 100%; }
+
+    /* ── Buttons ── */
+    .action-row { display: flex; gap: 10px; margin-top: 18px; }
+    .btn { padding: 7px 18px; border-radius: 4px; border: none; cursor: pointer; font-size: 0.85rem; transition: background 0.15s; }
+    .btn-add  { background: #1a361a; color: #7b7; }
+    .btn-add:hover  { background: #254525; }
+    .btn-save { background: #1a2a42; color: #7af; }
+    .btn-save:hover { background: #243550; }
+  </style>
+</head>
+<body>
+  <h1>Compliments Manager</h1>
+  <p class="subtitle" id="subtitle"></p>
+  <div id="status"></div>
+
+  <div class="tabs" id="tabs"></div>
+  <div id="content"></div>
+
+  <div class="action-row">
+    <button class="btn btn-save" onclick="save()">Enregistrer dans config.js</button>
+  </div>
+
+  <script>
+  // ── i18n ─────────────────────────────────────────────────────────────────
+  const TRANSLATIONS = {
+    fr: {
+      catLabels: { anytime: "Toujours", morning: "Matin", afternoon: "Après-midi", evening: "Soir" },
+      settings: "Paramètres",
+      addTitle: "Ajouter",
+      modeCitation: "citation",
+      modeText: "texte libre",
+      citationLabel: "Citation",
+      authorLabel: "Auteur (optionnel)",
+      textLabel: "Texte",
+      authorPlaceholder: "Prénom Nom",
+      citationPlaceholder: "Le texte entre guillemets…",
+      textPlaceholder: "Texte libre affiché tel quel…",
+      btnAdd: "Ajouter",
+      filterAll: "Toutes",
+      filterActive: "Actives",
+      filterPaused: "En pause",
+      pause: "Pause",
+      resume: "Réactiver",
+      delete: "Supprimer",
+      paused: "pause",
+      countTpl: (n, a, p) => `${n} compliment${n>1?"s":""} — ${a} actif${a>1?"s":""}, ${p} en pause`,
+      settingsTitle: "Réglages du module compliments",
+      updateInterval: "Intervalle",
+      updateIntervalHint: "Temps entre deux compliments",
+      fadeSpeed: "Vitesse de transition",
+      fadeSpeedHint: "Durée de l'animation",
+      morningTitle: "Plage Matin",
+      afternoonTitle: "Plage Après-midi",
+      morningStart: "Début",
+      morningEnd: "Fin",
+      afternoonStart: "Début",
+      afternoonEnd: "Fin",
+      cssTitle: "Apparence",
+      cssLabel: "Classes CSS",
+      cssHint: "Classes appliquées au texte affiché",
+      ms: "ms",
+      subtitleTpl: lang => `langue détectée : ${lang}`,
+      saved: "Enregistré ✓ — pris en compte au prochain rechargement du miroir.",
+      errLoad: "Erreur chargement : ",
+      errSave: "Erreur : ",
+    },
+    en: {
+      catLabels: { anytime: "Always", morning: "Morning", afternoon: "Afternoon", evening: "Evening" },
+      settings: "Settings",
+      addTitle: "Add",
+      modeCitation: "quote",
+      modeText: "plain text",
+      citationLabel: "Quote",
+      authorLabel: "Author (optional)",
+      textLabel: "Text",
+      authorPlaceholder: "First Last",
+      citationPlaceholder: "The quoted text…",
+      textPlaceholder: "Plain text displayed as-is…",
+      btnAdd: "Add",
+      filterAll: "All",
+      filterActive: "Active",
+      filterPaused: "Paused",
+      pause: "Pause",
+      resume: "Resume",
+      delete: "Delete",
+      paused: "paused",
+      countTpl: (n, a, p) => `${n} compliment${n>1?"s":""} — ${a} active, ${p} paused`,
+      settingsTitle: "Compliments module settings",
+      updateInterval: "Update interval",
+      updateIntervalHint: "Time between compliments",
+      fadeSpeed: "Fade speed",
+      fadeSpeedHint: "Animation duration",
+      morningTitle: "Morning window",
+      afternoonTitle: "Afternoon window",
+      morningStart: "Start",
+      morningEnd: "End",
+      afternoonStart: "Start",
+      afternoonEnd: "End",
+      cssTitle: "Appearance",
+      cssLabel: "CSS classes",
+      cssHint: "Applied to the displayed text",
+      ms: "ms",
+      subtitleTpl: lang => `detected language: ${lang}`,
+      saved: "Saved ✓ — changes will apply on next mirror reload.",
+      errLoad: "Load error: ",
+      errSave: "Error: ",
+    },
+  };
+
+  function t(key, ...args) {
+    const lang = window._lang || "en";
+    const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
+    const val  = dict[key];
+    if (typeof val === "function") return val(...args);
+    return val || key;
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  const CATS = ["anytime", "morning", "afternoon", "evening"];
+  let data     = {};    // { anytime: [{mode,citation,author,paused}], ... }
+  let settings = {};
+  let curTab   = "anytime";
+  let filter   = "all";
+  let addMode  = "citation";
+
+  // ── Bootstrap ─────────────────────────────────────────────────────────────
+  async function load() {
+    const r = await fetch("/compliments-manager/data");
+    const d = await r.json();
+    if (!d.success) return showStatus(t("errLoad") + d.error, "err");
+    data     = d.categories;
+    settings = d.settings;
+    window._lang = d.language;
+    document.getElementById("subtitle").textContent = t("subtitleTpl", d.language);
+    renderTabs();
+    renderContent();
+  }
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  function renderTabs() {
+    const el = document.getElementById("tabs");
+    el.innerHTML = "";
+    for (const cat of CATS) {
+      const list   = data[cat] || [];
+      const paused = list.filter(c => c.paused).length;
+      const btn    = document.createElement("button");
+      btn.className = "tab" + (curTab === cat ? " active" : "");
+      btn.innerHTML = `${t("catLabels")[cat]}<span class="tab-badge${paused?" has-paused":""}">${list.length}</span>`;
+      btn.onclick   = () => { curTab = cat; renderTabs(); renderContent(); };
+      el.appendChild(btn);
+    }
+    const settingsBtn = document.createElement("button");
+    settingsBtn.className = "tab" + (curTab === "settings" ? " active" : "");
+    settingsBtn.textContent = "⚙ " + t("settings");
+    settingsBtn.onclick = () => { curTab = "settings"; renderTabs(); renderContent(); };
+    el.appendChild(settingsBtn);
+  }
+
+  // ── Content router ────────────────────────────────────────────────────────
+  function renderContent() {
+    if (curTab === "settings") renderSettings();
+    else renderCategory(curTab);
+  }
+
+  // ── Category view ─────────────────────────────────────────────────────────
+  function renderCategory(cat) {
+    const list = data[cat] || [];
+    const paused = list.filter(c => c.paused).length;
+    const el = document.getElementById("content");
+
+    const visible = list.filter(c =>
+      filter === "all" ? true : filter === "active" ? !c.paused : c.paused
+    );
+
+    el.innerHTML = `
+      <div class="add-form">
+        <div class="add-form-header">
+          <span class="add-form-title">${t("addTitle")}</span>
+          <div class="mode-toggle">
+            <button class="mode-btn${addMode==="citation"?" active":""}" onclick="setAddMode('citation')">${t("modeCitation")}</button>
+            <button class="mode-btn${addMode==="text"?" active":""}" onclick="setAddMode('text')">${t("modeText")}</button>
+          </div>
+        </div>
+        ${addMode === "citation" ? `
+          <div class="add-row">
+            <div style="flex:1">
+              <label>${t("citationLabel")}</label>
+              <textarea id="new-citation" placeholder="${t("citationPlaceholder")}" style="margin-bottom:0"></textarea>
+            </div>
+            <div class="author-wrap">
+              <label>${t("authorLabel")}</label>
+              <input type="text" id="new-author" placeholder="${t("authorPlaceholder")}">
+            </div>
+          </div>
+        ` : `
+          <label>${t("textLabel")}</label>
+          <textarea id="new-citation" placeholder="${t("textPlaceholder")}" style="margin-bottom:0"></textarea>
+        `}
+        <div class="action-row" style="margin-top:10px">
+          <button class="btn btn-add" onclick="addCompliment('${cat}')">${t("btnAdd")}</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <button class="filter-btn${filter==="all"?" active":""}" onclick="setFilter('all',this)">${t("filterAll")}</button>
+        <button class="filter-btn${filter==="active"?" active":""}" onclick="setFilter('active',this)">${t("filterActive")}</button>
+        <button class="filter-btn${filter==="paused"?" active":""}" onclick="setFilter('paused',this)">${t("filterPaused")}</button>
+      </div>
+      <div id="count">${t("countTpl", list.length, list.length - paused, paused)}</div>
+      <div id="list"></div>
+    `;
+
+    const listEl = document.getElementById("list");
+    visible.forEach(c => {
+      const idx = list.indexOf(c);
+      const div = document.createElement("div");
+      div.className = "compliment-item" + (c.paused ? " paused" : "");
+      const textHtml = c.mode === "citation"
+        ? `<div class="item-text citation">"${esc(c.citation)}"${c.paused?`<span class="paused-badge">${t("paused")}</span>`:""}</div>${c.author?`<div class="item-author">— ${esc(c.author)}</div>`:""}`
+        : `<div class="item-text plain">${esc(c.citation)}${c.paused?`<span class="paused-badge">${t("paused")}</span>`:""}</div>`;
+      div.innerHTML = `
+        <div>
+          <div class="item-mode">${c.mode === "citation" ? t("modeCitation") : t("modeText")}</div>
+          ${textHtml}
+        </div>
+        <div class="btn-group">
+          <button class="btn-pause${c.paused?" on":""}" onclick="togglePause('${cat}',${idx})">${c.paused ? t("resume") : t("pause")}</button>
+          <button class="btn-delete" onclick="remove('${cat}',${idx})">${t("delete")}</button>
+        </div>`;
+      listEl.appendChild(div);
+    });
+
+    // Re-attach Ctrl+Enter
+    const ta = document.getElementById("new-citation");
+    if (ta) ta.addEventListener("keydown", e => { if (e.key === "Enter" && e.ctrlKey) addCompliment(cat); });
+  }
+
+  // ── Settings view ─────────────────────────────────────────────────────────
+  function renderSettings() {
+    const s = settings;
+    document.getElementById("content").innerHTML = `
+      <div class="settings-grid">
+        <div class="setting-block">
+          <div class="setting-title">${t("settingsTitle")}</div>
+          <div class="setting-row">
+            <div><div class="setting-label">${t("updateInterval")}</div><div class="setting-hint">${t("updateIntervalHint")}</div></div>
+            <div style="display:flex;align-items:center">
+              <input class="setting-input" type="number" id="s-updateInterval" value="${s.updateInterval}" min="1000" step="1000" oninput="updateDisplay('updateInterval')">
+              <span class="setting-display" id="d-updateInterval">${msToHuman(s.updateInterval)}</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">${t("fadeSpeed")}</div><div class="setting-hint">${t("fadeSpeedHint")}</div></div>
+            <div style="display:flex;align-items:center">
+              <input class="setting-input" type="number" id="s-fadeSpeed" value="${s.fadeSpeed}" min="0" step="500" oninput="updateDisplay('fadeSpeed')">
+              <span class="setting-display" id="d-fadeSpeed">${msToHuman(s.fadeSpeed)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-block">
+          <div class="setting-title">${t("morningTitle")}</div>
+          <div class="time-grid">
+            <div class="time-item"><label>${t("morningStart")} (h)</label><input class="setting-input" type="number" id="s-morningStartTime" value="${s.morningStartTime}" min="0" max="23"></div>
+            <div class="time-item"><label>${t("morningEnd")} (h)</label><input class="setting-input" type="number" id="s-morningEndTime" value="${s.morningEndTime}" min="0" max="23"></div>
+          </div>
+          <div class="setting-title" style="margin-top:14px">${t("afternoonTitle")}</div>
+          <div class="time-grid">
+            <div class="time-item"><label>${t("afternoonStart")} (h)</label><input class="setting-input" type="number" id="s-afternoonStartTime" value="${s.afternoonStartTime}" min="0" max="23"></div>
+            <div class="time-item"><label>${t("afternoonEnd")} (h)</label><input class="setting-input" type="number" id="s-afternoonEndTime" value="${s.afternoonEndTime}" min="0" max="23"></div>
+          </div>
+        </div>
+
+        <div class="setting-block full">
+          <div class="setting-title">${t("cssTitle")}</div>
+          <div class="setting-row">
+            <div><div class="setting-label">${t("cssLabel")}</div><div class="setting-hint">${t("cssHint")}</div></div>
+          </div>
+          <input class="setting-input wide" type="text" id="s-classes" value="${esc(s.classes)}">
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  function setAddMode(mode) { addMode = mode; renderContent(); }
+  function setFilter(f, btn) {
+    filter = f;
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderContent();
+  }
+
+  function addCompliment(cat) {
+    const ta  = document.getElementById("new-citation");
+    const citation = ta ? ta.value.trim() : "";
+    if (!citation) return;
+    const author = document.getElementById("new-author")?.value.trim() || "";
+    if (!data[cat]) data[cat] = [];
+    data[cat].push({ mode: addMode, citation, author, paused: false });
+    ta.value = "";
+    if (document.getElementById("new-author")) document.getElementById("new-author").value = "";
+    renderTabs(); renderContent();
+  }
+
+  function togglePause(cat, i) { data[cat][i].paused = !data[cat][i].paused; renderTabs(); renderContent(); }
+  function remove(cat, i)      { data[cat].splice(i, 1); renderTabs(); renderContent(); }
+
+  function collectSettings() {
+    const keys = ["updateInterval","fadeSpeed","morningStartTime","morningEndTime","afternoonStartTime","afternoonEndTime","classes"];
+    const s = {};
+    for (const k of keys) {
+      const el = document.getElementById("s-" + k);
+      if (!el) continue;
+      s[k] = el.type === "number" ? Number(el.value) : el.value;
+    }
+    return s;
+  }
+
+  async function save() {
+    const payload = { categories: data, settings: collectSettings() };
+    const r = await fetch("/compliments-manager/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (d.success) showStatus(t("saved"), "ok");
+    else showStatus(t("errSave") + d.error, "err");
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function updateDisplay(key) {
+    const val = Number(document.getElementById("s-" + key)?.value || 0);
+    const el  = document.getElementById("d-" + key);
+    if (el) el.textContent = msToHuman(val);
+  }
+
+  function msToHuman(ms) {
+    if (ms >= 60000) return (ms / 60000).toFixed(0) + " min";
+    if (ms >= 1000)  return (ms / 1000).toFixed(0) + " s";
+    return ms + " ms";
+  }
+
+  function showStatus(msg, type) {
+    const el = document.getElementById("status");
+    el.textContent = msg; el.className = type;
+    setTimeout(() => { el.style.display = "none"; el.className = ""; }, 6000);
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
+  }
+
+  document.addEventListener("DOMContentLoaded", load);
+  </script>
+</body>
+</html>
