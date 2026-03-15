@@ -61,6 +61,8 @@
     .btn-pause:hover  { border-color: #776; color: #aa9; }
     .btn-pause.on     { border-color: #554; color: #887; }
     .btn-delete:hover { border-color: #733; color: #b55; }
+    .btn-move { background: none; border: 1px solid #252525; color: #556; border-radius: 3px; padding: 3px 6px; cursor: pointer; font-size: 0.72rem; width: 100%; transition: all 0.12s; }
+    .btn-move:hover { border-color: #448; color: #88c; }
 
     /* ── Settings tab ── */
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -122,6 +124,7 @@
       pause: "Pause",
       resume: "Réactiver",
       delete: "Supprimer",
+      moveTo: "→",
       paused: "pause",
       countTpl: (n, a, p) => `${n} compliment${n>1?"s":""} — ${a} actif${a>1?"s":""}, ${p} en pause`,
       settingsTitle: "Réglages du module compliments",
@@ -163,6 +166,7 @@
       pause: "Pause",
       resume: "Resume",
       delete: "Delete",
+      moveTo: "→",
       paused: "paused",
       countTpl: (n, a, p) => `${n} compliment${n>1?"s":""} — ${a} active, ${p} paused`,
       settingsTitle: "Compliments module settings",
@@ -298,6 +302,8 @@
       const textHtml = c.mode === "citation"
         ? `<div class="item-text citation">"${esc(c.citation)}"${c.paused?`<span class="paused-badge">${t("paused")}</span>`:""}</div>${c.author?`<div class="item-author">— ${esc(c.author)}</div>`:""}`
         : `<div class="item-text plain">${esc(c.citation)}${c.paused?`<span class="paused-badge">${t("paused")}</span>`:""}</div>`;
+      const otherCats = CATS.filter(c2 => c2 !== cat);
+      const moveOptions = otherCats.map(c2 => `<option value="${c2}">${t("catLabels")[c2]}</option>`).join("");
       div.innerHTML = `
         <div>
           <div class="item-mode">${c.mode === "citation" ? t("modeCitation") : t("modeText")}</div>
@@ -305,6 +311,10 @@
         </div>
         <div class="btn-group">
           <button class="btn-pause${c.paused?" on":""}" onclick="togglePause('${cat}',${idx})">${c.paused ? t("resume") : t("pause")}</button>
+          <select class="btn-move" onchange="moveCompliment('${cat}',${idx},this.value);this.value=''">
+            <option value="" disabled selected>${t("moveTo")}</option>
+            ${moveOptions}
+          </select>
           <button class="btn-delete" onclick="remove('${cat}',${idx})">${t("delete")}</button>
         </div>`;
       listEl.appendChild(div);
@@ -383,8 +393,15 @@
     renderTabs(); renderContent();
   }
 
-  function togglePause(cat, i) { data[cat][i].paused = !data[cat][i].paused; renderTabs(); renderContent(); }
-  function remove(cat, i)      { data[cat].splice(i, 1); renderTabs(); renderContent(); }
+  function togglePause(cat, i)          { data[cat][i].paused = !data[cat][i].paused; renderTabs(); renderContent(); }
+  function remove(cat, i)               { data[cat].splice(i, 1); renderTabs(); renderContent(); }
+  function moveCompliment(from, i, to)  {
+    if (!to) return;
+    const [item] = data[from].splice(i, 1);
+    if (!data[to]) data[to] = [];
+    data[to].push(item);
+    renderTabs(); renderContent();
+  }
 
   function collectSettings() {
     const keys = ["updateInterval","fadeSpeed","morningStartTime","morningEndTime","afternoonStartTime","afternoonEndTime","classes"];
