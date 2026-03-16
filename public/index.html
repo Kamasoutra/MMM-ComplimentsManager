@@ -209,7 +209,7 @@
 
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   async function load() {
-    const r = await fetch("/compliments-manager/data");
+    const r = await fetch("/compliments-manager/data", { credentials: "same-origin" });
     const d = await r.json();
     if (!d.success) return showStatus(t("errLoad") + d.error, "err");
     data     = d.categories;
@@ -418,6 +418,7 @@
     const payload = { categories: data, settings: collectSettings() };
     const r = await fetch("/compliments-manager/save", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
